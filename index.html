@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>코켓배송 기억력 테스트 게임</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: sans-serif; }
+
+    /* Intro 화면 */
+    #intro {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: url('intro-background.png') no-repeat center center;
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      color: #333;
+    }
+    #intro h1 { font-size: 2em; margin-bottom: 0.5em; }
+    #intro p { font-size: 1em; margin-bottom: 1.5em; }
+    #startBtn {
+      background: #ffd54f;
+      border: none;
+      padding: 0.75em 1.5em;
+      font-size: 1.25em;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* 게임 화면 숨김 처리 */
+    #game { display: none; }
+    #endScreen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; color: #333;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+    #endScreen h1 { font-size: 2em; margin-bottom: 0.5em; color: #555; }
+    #endScreen p { font-size: 1.1em; margin: 0.3em 0; }
+    #retryBtn { margin-top: 1.5em; background: #f48fb1; border: none; padding: 0.75em 1.5em; font-size: 1.25em; border-radius: 8px; cursor: pointer; }
+
+    body.game-active { overflow: auto; }
+    body.game-active #intro { display: none; }
+    body.game-active #game { display: block; }
+
+    /* 게임 UI */
+    body.game-active { text-align: center; padding: 10px; background: url('1.jpg') no-repeat center center fixed; background-size: cover; color: white; }
+    .overlay {
+      background: rgba(255,255,255,0.7);
+      color: #000;
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 5px;
+      margin: 5px;
+    }
+    h1.game-title { font-size: 1.5em; text-shadow: 1px 1px 3px rgba(0,0,0,0.7); }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      max-width: 420px;
+      margin: 20px auto;
+    }
+    .card {
+      width: 100%; aspect-ratio: 1;
+      border-radius: 10px;
+      cursor: pointer;
+      background: url('2.jpg') no-repeat center center;
+      background-size: cover;
+      transition: transform 0.3s;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2em; color: transparent; user-select: none;
+    }
+    .card.flipped, .card.matched {
+      background: #fff !important; color: black !important; transform: rotateY(180deg);
+    }
+    .matched { background: limegreen !important; color: white !important; }
+  </style>
+</head>
+<body>
+  <!-- Intro Screen -->
+  <div id="intro">
+    <h1>코켓배송 기억력 테스트</h1>
+    <p>❤️ 90초 안에 같은카드를 찾으세요. ❤️<br>같은카드 찾을시 10초 추가됩니다</p>
+    <p>© 2025 코켓게임즈. All rights reserved.</p>
+    <p>유튜브 '걸코_Gulko' 저작권 콘텐츠입니다.</p>
+    <p><a href="https://www.youtube.com/@Gulko" target="_blank">https://www.youtube.com/@Gulko</a></p>
+    <button id="startBtn">테스트 시작</button>
+  </div>
+
+  <!-- Game Content -->
+  <div id="game">
+    <div class="overlay">
+      <h1 class="game-title">코켓배송 기억력 테스트</h1>
+      <p>같은 그림을 찾아 짝을 맞춰보세요!</p>
+      <p>유튜브 '걸코_Gulko' 저작권 콘텐츠입니다.</p>
+      <p><a href="https://www.youtube.com/@Gulko" target="_blank">https://www.youtube.com/@Gulko</a></p>
+      <div id="timer" class="overlay">남은 시간: 90초</div>
+      <div id="misses" class="overlay">틀린 횟수: 0회</div>
+      <div id="score" class="overlay">점수: 0</div>
+    </div>
+    <div id="board"></div>
+
+    <!-- 오디오 요소 -->
+    <audio id="bgMusic" src="1.mp3" loop></audio>
+    <audio id="matchSound" src="2.mp3"></audio>
+    <audio id="wrongSound" src="3.mp3"></audio>
+    <audio id="endSound" src="4.mp3"></audio>
+  </div>
+
+  <!-- End Screen -->
+  <div id="endScreen">
+    <h1>게임 오버! 😢</h1>
+    <p>최종 점수: <span id="finalScore">0</span></p>
+    <p>코팡 구입은 걸코와 함께</p>
+    <p><a href="https://www.youtube.com/@Gulko" target="_blank">https://www.youtube.com/@Gulko</a></p>
+    <p>사랑합니다. 고객님</p>
+    <button id="retryBtn">다시 시작</button>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const timerEl = document.getElementById('timer');
+    const missesEl = document.getElementById('misses');
+    const scoreEl = document.getElementById('score');
+    const bgMusic = document.getElementById('bgMusic');
+    const matchSound = document.getElementById('matchSound');
+    const wrongSound = document.getElementById('wrongSound');
+    const endSound = document.getElementById('endSound');
+    const startBtn = document.getElementById('startBtn');
+    const endScreen = document.getElementById('endScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    const retryBtn = document.getElementById('retryBtn');
+
+    let cards = [], firstCard = null, secondCard = null, lock = false;
+    let timeLeft = 90, misses = 0, score = 0, timerInterval;
+
+    // 카드 내용 배열: 원하는 대로 변경 가능
+    const cardContents = ['🍎','🍌','🍇','🍓','🍉','🍒','🍍','🥝','🍊','🍋','🥭','🥥','🍈','🍅','🥑','🥦','🥬','🥒'];
+    const rows = 6, cols = 6;
+    const totalPairs = (rows * cols) / 2;
+
+    startBtn.addEventListener('click', () => {
+      endScreen.style.display = 'none';
+      document.body.classList.add('game-active');
+      bgMusic.currentTime = 0;
+      bgMusic.play().catch(() => {});
+      init();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      endScreen.style.display = 'none';
+      score = 0; timeLeft = 90; misses = 0;
+      bgMusic.currentTime = 0;
+      bgMusic.play().catch(() => {});
+      init();
+    });
+
+    function init() {
+      board.innerHTML = '';
+      firstCard = secondCard = null; lock = false;
+      timeLeft = 90; misses = 0; score = 0;
+      updateStatus();
+
+      // 카드 덱 생성
+      const selected = [...cardContents].sort(() => 0.5 - Math.random()).slice(0, totalPairs);
+      const deckContents = [...selected, ...selected].sort(() => 0.5 - Math.random());
+
+      cards = deckContents.map((content) => {
+        const card = document.createElement('div');
+        card.className = 'card'; card.dataset.content = content;
+        card.addEventListener('click', () => flipCard(card));
+        board.appendChild(card);
+        return card;
+      });
+
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--; updateStatus();
+        if (timeLeft <= 0) endGame(false);
+      }, 1000);
+    }
+
+    function updateStatus() {
+      timerEl.textContent = `남은 시간: ${timeLeft}초`;
+      missesEl.textContent = `틀린 횟수: ${misses}회`;
+      scoreEl.textContent = `점수: ${score}`;
+    }
+
+    function flipCard(card) {
+      if (lock || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+      if (bgMusic.paused) bgMusic.play().catch(() => {});
+
+      card.classList.add('flipped'); card.textContent = card.dataset.content;
+      if (!firstCard) firstCard = card;
+      else {
+        secondCard = card; lock = true;
+        if (firstCard.dataset.content === secondCard.dataset.content) {
+          firstCard.classList.add('matched'); secondCard.classList.add('matched');
+          score += 10; timeLeft += 10;
+          matchSound.currentTime = 0; matchSound.play();
+          resetTurn(); updateStatus();
+          if (cards.every(c => c.classList.contains('matched'))) endGame(true);
+        } else {
+          misses++; wrongSound.currentTime = 0; wrongSound.play();
+          setTimeout(() => {
+            firstCard.classList.remove('flipped'); secondCard.classList.remove('flipped');
+            firstCard.textContent = ''; secondCard.textContent = '';
+            resetTurn(); updateStatus();
+          }, 800);
+        }
+      }
+    }
+
+    function resetTurn() { [firstCard, secondCard] = [null, null]; lock = false; }
+
+    function endGame(win) {
+      clearInterval(timerInterval); bgMusic.pause(); endSound.currentTime = 0; endSound.play();
+      finalScoreEl.textContent = score;
+      endScreen.querySelector('h1').textContent = win ? '축하합니다! 🎉' : '게임 오버! 😢';
+      endScreen.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>
